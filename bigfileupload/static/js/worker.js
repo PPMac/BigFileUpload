@@ -1,13 +1,16 @@
 class ChunkUpload {
-  constructor(fileId, file, index, chunkId, checksum) {
+  constructor(fileId, file, index, chunkSize, chunkId, checksum) {
     this.fileId = fileId;
     this.file = file;
     this.index = index;
+    this.chunkSize = chunkSize;
     this.chunkId = chunkId;
     this.checksum = checksum;
     this.sleepTime = 500;
   }
 
+  // create chunk
+  // - upload: whether upload to server when created
   create(upload) {
     let xhr = new XMLHttpRequest();
 
@@ -37,6 +40,7 @@ class ChunkUpload {
     xhr.send(null);
   }
 
+  // upload the chunk to the server
   upload() {
     let xhr = new XMLHttpRequest();
 
@@ -44,38 +48,34 @@ class ChunkUpload {
     xhr.send(null);
 
     let createSuccess = (e) => {
-      this.chunkSize = parseInt(e.target.getResponseHeader("Chunk-Size"));
       this.offset = parseInt(e.target.getResponseHeader("Chunk-Offset"));
 
-      let reader = new FileReader();
+      let xhr = new XMLHttpRequest();
 
-      reader.onload = (e) => {
-        if (!e.target.result) return;
+      xhr.open("PATCH", "/chunk/" + this.chunkId, true);
+      xhr.setRequestHeader("Content-Type", "application/offset+octet-stream");
+      xhr.setRequestHeader("Chunk-Offset", this.offset);
 
-        let patchXhr = new XMLHttpRequest();
+      xhr.onload = (e) => {
+        if (e.target.status >= 200 && e.target.status < 300) {
+          this.offset = xhr.getResponseHeader("Chunk-Offset");
+          postMessage(["chunkId", this.chunkId]);
+        } else {
+          console.log(
+            "Chunk " + this.chunkId + " with index " + this.index +
+            "upload failed! try again...");
 
-        patchXhr.open("PATCH", "/chunk/" + this.chunkId, true);
-        patchXhr.overrideMimeType("application/octet-stream");
-        patchXhr.setRequestHeader("Chunk-Offset", this.offset);
-
-        patchXhr.onload = (e) => {
-          if (e.target.status >= 200 && e.target.status < 300) {
-            this.offset = patchXhr.getResponseHeader("Chunk-Offset");
-            postMessage(this.chunkId);
-          } else {
-            console.log(
-              "Chunk " + this.chunkId + " with index " + this.index +
-              "upload failed! try again...");
-
-            setTimeout(this.upload(), this.sleepTime);
-            this.sleepTime *= 2;
-          }
-        };
-
-        patchXhr.send(e.target.result);
+          setTimeout(this.upload(), this.sleepTime);
+          this.sleepTime *= 2;
+        }
       };
 
-      reader.readAsBinaryString(this.file.slice(
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          postMessage(["loaded", e.loaded]);
+        }
+      };
+      xhr.send(this.file.slice(
         this.index * this.chunkSize + this.offset,
         (this.index + 1) * this.chunkSize));
     };
@@ -105,7 +105,9 @@ class ChunkUpload {
 }
 
 onmessage = (e) => {
-  let [fileId, file, index, chunkId, checksum] = e.data;
-  let chunkUpload = new ChunkUpload(fileId, file, index, chunkId, checksum);
+  let [fileId, file, index, chunkSize, chunkId, checksum] = e.data;
+  let chunkUpload = new ChunkUpload(
+    fileId, file, index, chunkSize, chunkId, checksum);
+
   chunkUpload.upload();
 };

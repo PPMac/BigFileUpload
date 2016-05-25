@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+# add current project to path
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,6 +22,8 @@ CHUNKS_ROOT = "./chunks"
 
 
 def initialize():
+    """make sure `CHUNKS_ROOT` exists"""
+
     chunks_root = os.path.abspath(
         os.path.expandvars(os.path.expanduser(CHUNKS_ROOT)))
 

@@ -19,6 +19,8 @@ class BaseHandler(RequestHandler):
 
     @gen.coroutine
     def options(self):
+        """get settings of BigFileUpload"""
+
         self.set_status(200)
         self.set_header("Chunk-Size", self.CHUNK_SIZE)
         self.finish()
@@ -31,16 +33,19 @@ class BaseHandler(RequestHandler):
 class FileHandler(BaseHandler):
     @gen.coroutine
     def get(self, file_id):
+        """download this file"""
+
         file_ = File.get(file_id)
         if not file_:
             self.set_status(404)
             self.finish()
             return
 
-        if not file_.is_good:
-            self.set_status(406, "file not completed")
-            self.finish()
-            return
+        # necessary?
+        # if not file_.is_good:
+        #     self.set_status(406, "file not completed")
+        #     self.finish()
+        #     return
 
         self.set_header("Content-Type", file_.content_type)
         self.set_header("Content-Length", file_.size)
@@ -49,33 +54,35 @@ class FileHandler(BaseHandler):
             chunk = Chunk.get(chunk_id)
 
             try:
-                with open(chunk.path, 'r') as f:
+                with open(chunk.path, 'rb') as f:
                     buffer = f.read()
-                    if not buffer:
-                        break
 
                     self.write(buffer)
                     self.flush()
 
             except Exception as e:
                 self.set_status(500, str(e))
-            else:
-                self.set_status(206)
+                self.finish()
+                return
 
-            self.finish()
+        self.set_status(206)
+        self.finish()
 
     @gen.coroutine
     def post(self, *args):
-        size = int(self.request.headers.get("File-Size", 0))
+        """create file"""
+
+        file_name = self.request.headers.get("File-Name", None)
+        size = int(self.request.headers.get("File-Size", -1))
         content_type = self.request.headers.get(
             "Content-Type", "application/octet-stream")
 
-        if not size:
-            self.set_status(412, "File-Size required")
+        if size <= 0 or not file_name:
+            self.set_status(412, "headers required")
             self.finish()
             return
 
-        file_ = File.create(size, self.CHUNK_SIZE, content_type)
+        file_ = File.create(file_name, size, self.CHUNK_SIZE, content_type)
 
         self.set_status(201)
         self.set_header("File-Id", file_.id_)
@@ -90,6 +97,8 @@ class FileHandler(BaseHandler):
 
     @gen.coroutine
     def head(self, file_id):
+        """get information of this file"""
+
         file_ = File.get(file_id)
         if not file_:
             self.set_status(404)
@@ -110,6 +119,8 @@ class FileHandler(BaseHandler):
 class ChunkHandler(BaseHandler):
     @gen.coroutine
     def post(self, *args):
+        """create chunk"""
+
         file_id = self.request.headers.get('File-Id', None)
         index = int(self.request.headers.get("Chunk-Index", -1))
         checksum = self.request.headers.get("Chunk-Checksum", None)
@@ -142,6 +153,8 @@ class ChunkHandler(BaseHandler):
 
     @gen.coroutine
     def head(self, chunk_id):
+        """get information of this chunk"""
+
         chunk = Chunk.get(chunk_id)
         if not chunk:
             self.set_status(404)
@@ -160,6 +173,8 @@ class ChunkHandler(BaseHandler):
 
     @gen.coroutine
     def patch(self, chunk_id):
+        """upload chunks, support resuming"""
+
         chunk = Chunk.get(chunk_id)
         if not chunk:
             self.set_status(404)

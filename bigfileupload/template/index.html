@@ -2,6 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
+        <title>BigFileUpload Demo</title>
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
     </head>
     <body>
@@ -12,8 +13,14 @@
             <input type="file">
           </div>
         </div>
-        <div class="row" style="margin-top: 20px;">
-          <div id="download" style="margin">
+        <div class="row">
+          <div class="progress" style="margin-top: 20px;">
+            <div id="progress-bar" class="progress-bar progress-bar-success progress-bar-striped" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div id="download">
           </div>
         </div>
       </div>

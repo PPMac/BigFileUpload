@@ -15,9 +15,10 @@ class File(object):
     KEY_FILE = "file:{id_}"
     KEY_CHUNKS = KEY_FILE + ":chunks"
 
-    def __init__(self, id_, size, chunk_size, create_time,
+    def __init__(self, id_, file_name, size, chunk_size, create_time,
                  content_type, chunks, is_good):
         self.id_ = id_
+        self.file_name = file_name
         self.size = int(size)
         self.chunk_size = int(chunk_size)
         self.create_time = datetime.strptime(create_time, "%Y-%m-%d %H:%M:%S")
@@ -27,7 +28,7 @@ class File(object):
             is_good if isinstance(is_good, bool) else is_good == "True")
 
     @classmethod
-    def create(cls, size, chunk_size, content_type):
+    def create(cls, file_name, size, chunk_size, content_type):
         id_ = uuid.uuid1().hex
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         chunks = [
@@ -35,7 +36,8 @@ class File(object):
             for _ in xrange(int(math.ceil(size / chunk_size)))
         ]
 
-        file_ = cls(id_, size, chunk_size, now, content_type, chunks, False)
+        file_ = cls(id_, file_name, size, chunk_size, now,
+                    content_type, chunks, False)
 
         key_file = cls.KEY_FILE.format(id_=file_.id_)
         key_chunks = cls.KEY_CHUNKS.format(id_=file_.id_)
@@ -43,6 +45,7 @@ class File(object):
         db = Database.instance()
         db.hmset(key_file, {
             "id_": file_.id_,
+            "file_name": file_.file_name,
             "size": file_.size,
             "chunk_size": file_.chunk_size,
             "create_time": file_.create_time,
