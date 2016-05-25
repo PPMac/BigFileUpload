@@ -20,6 +20,8 @@ class FileUpload {
         this.chunks = jqXHR.getResponseHeader("File-Chunks").split(" ");
         this.location = jqXHR.getResponseHeader("Location");
 
+        this.notFinished = new Set(this.chunks);
+
         for (; this.pointer < min(this.chunks.length, this.threadsNumber);
              ++this.pointer) {
           this.uploadChunk(this.pointer);
@@ -42,8 +44,15 @@ class FileUpload {
         [this.fileId, this.file, index, this.chunks[index], checksum]);
 
       worker.onmessage = (e) => {
-        if (e.data == "success" && this.pointer < this.chunks.length) {
+        this.notFinished.delete(e.data);
+
+        if (this.pointer < this.chunks.length) {
           this.uploadChunk(this.pointer++);
+        }
+
+        if (!this.notFinished.size) {
+          let download = $("#download");
+          download.html("<a href=\"/file/" + this.fileId + "\" download>Download</a>");
         }
       };
     };

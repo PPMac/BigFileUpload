@@ -31,45 +31,38 @@ class BaseHandler(RequestHandler):
 class FileHandler(BaseHandler):
     @gen.coroutine
     def get(self, file_id):
-        chunk = Chunk.get(chunk_id)
-        if not chunk or os.path.exists(chunk.path):
+        file_ = File.get(file_id)
+        if not file_:
             self.set_status(404)
             self.finish()
             return
 
-        self.set_header("Content-Type", "application/octet-stream")
-        self.set_header("Chunk-Size", chunk.size)
+        if not file_.is_good:
+            self.set_status(406, "file not completed")
+            self.finish()
+            return
 
-        start, end = self.request.headers.get(
-            "Range", "0-{}".format(chunk.size - 1)).split('-')
+        self.set_header("Content-Type", file_.content_type)
+        self.set_header("Content-Length", file_.size)
 
-        try:
-            with open(chunk.path, 'r') as f:
-                f.seek(start)
-                total = end - start + 1
+        for chunk_id in file_.chunks:
+            chunk = Chunk.get(chunk_id)
 
-                while total > 0:
-                    size = 1024 if 1024 < total else total
-
-                    buffer = f.read(size)
+            try:
+                with open(chunk.path, 'r') as f:
+                    buffer = f.read()
                     if not buffer:
                         break
 
                     self.write(buffer)
                     self.flush()
 
-                    total -= size
+            except Exception as e:
+                self.set_status(500, str(e))
+            else:
+                self.set_status(206)
 
-        except Exception as e:
-            self.set_status(500, str(e))
-        else:
-            self.set_status(206)
-            self.set_header(
-                "Content-Range",
-                "bytes {}-{}/{}".format(start, end, chunk.size)
-            )
-
-        self.finish()
+            self.finish()
 
     @gen.coroutine
     def post(self, *args):

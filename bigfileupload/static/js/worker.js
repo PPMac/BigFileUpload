@@ -61,7 +61,7 @@ class ChunkUpload {
         patchXhr.onload = (e) => {
           if (e.target.status >= 200 && e.target.status < 300) {
             this.offset = patchXhr.getResponseHeader("Chunk-Offset");
-            postMessage("success");
+            postMessage(this.chunkId);
           } else {
             console.log(
               "Chunk " + this.chunkId + " with index " + this.index +
